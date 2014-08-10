@@ -384,7 +384,10 @@ class UserAgent(object):
                 e = self._handle_error(e, url=url)
         else:
             return self._handle_retries_exceeded(url, last_error=e)
-
+    
+    def closeurl(self, url):
+        self.clientpool.remove_client(url)
+    
     @classmethod
     def _conversation_str(cls, url, resp):
         header_str = '\n'.join('%s: %s' % item for item in resp.headers.pretty_items())

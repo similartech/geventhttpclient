@@ -209,7 +209,15 @@ class HTTPClientPool(object):
             client = HTTPClient.from_url(url, **self.client_args)
             self.clients[client_key] = client
             return client
-
+    def remove_client(self, url):
+        if not isinstance(url, URL):
+            url = URL(url)
+        client_key = url.host, url.port
+        try:
+            return self.clients.pop(client_key)
+        except KeyError:
+            return
+        
     def close(self):
         for client in self.clients.values():
             client.close()
