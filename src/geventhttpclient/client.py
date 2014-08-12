@@ -214,7 +214,8 @@ class HTTPClientPool(object):
             url = URL(url)
         client_key = url.host, url.port
         try:
-            return self.clients.pop(client_key)
+            client = self.clients.pop(client_key)
+            client.close()
         except KeyError:
             return
         
