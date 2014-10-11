@@ -351,11 +351,15 @@ class UserAgent(object):
                 except Exception as e:
                     # Basic transmission successful, but not the wished result
                     # Let's collect some debug info
-                    e.response = resp
-                    e.request = req
-                    e.http_log = self._conversation_str(url, resp)
+                    try:
+                        e.response = resp
+                        e.request = req
+                        e.http_log = self._conversation_str(url, resp)
+                        e = self._handle_error(e, url=req.url)
+                    except:
+                        pass
+                    
                     resp.release()
-                    e = self._handle_error(e, url=req.url)
                     break # Continue with next retry
 
                 if self.cookiejar is not None:
