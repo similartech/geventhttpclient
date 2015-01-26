@@ -32,6 +32,7 @@ class HTTPResponse(HTTPResponseParser):
         self._current_header_value = None
         self._header_position = 1
         self._body_buffer = bytearray()
+        self.status_message = None
 
     def __getitem__(self, key):
         return self._headers_index[key]
@@ -88,9 +89,13 @@ class HTTPResponse(HTTPResponseParser):
     def version(self):
         return self.get_http_version()
 
+    def _on_status(self, msg):
+        self.status_message = msg
+
     def _on_message_begin(self):
         if self.message_begun:
-            raise HTTPProtocolViolationError("A new response began before end of %r." % self)
+            raise HTTPProtocolViolationError(
+                "A new response began before end of %r." % self)
         self.message_begun = True
 
     def _on_message_complete(self):

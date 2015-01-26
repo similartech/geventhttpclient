@@ -1,7 +1,19 @@
 httplib = __import__('httplib')
 from geventhttpclient import response
+from geventhttpclient import header
 import gevent.socket
 import gevent.ssl
+
+
+
+class HTTPLibHeaders(header.Headers):
+
+    def __getitem__(self, key):
+        value = super(HTTPLibHeaders, self).__getitem__(key)
+        if isinstance(value, (list, tuple)):
+            return ", ".join(value)
+        else:
+            return value
 
 
 class HTTPResponse(response.HTTPSocketResponse):
@@ -13,6 +25,17 @@ class HTTPResponse(response.HTTPSocketResponse):
         else:
             method = method.upper()
         super(HTTPResponse, self).__init__(sock, method=method, **kw)
+
+    @property
+    def msg(self):
+        if hasattr(self, '_msg'):
+            return self._msg
+        self._msg = HTTPLibHeaders(self._headers_index)
+        return self._msg
+
+    @property
+    def fp(self):
+        return self
 
     @property
     def version(self):
@@ -28,10 +51,6 @@ class HTTPResponse(response.HTTPSocketResponse):
     @property
     def reason(self):
         return self.msg
-
-    @property
-    def msg(self):
-        return httplib.responses[self.status_code]
 
     def _read_status(self):
         return (self.version, self.status_code, self.msg)
@@ -63,6 +82,7 @@ class HTTPResponse(response.HTTPSocketResponse):
 
 
 HTTPLibConnection = httplib.HTTPConnection
+
 
 class HTTPConnection(httplib.HTTPConnection):
 
