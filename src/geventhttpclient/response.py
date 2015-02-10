@@ -156,7 +156,11 @@ class HTTPSocketResponse(HTTPResponse):
         self._sock = sock
         self.block_size = block_size
         self._read_headers()
-
+        if isinstance(sock, gevent.ssl.SSLSocket):
+            self.certificate_info = sock.getpeercert()
+        else:
+            self.certificate_info = None
+    
     def release(self):
         try:
             if self._sock is not None and self.should_close():

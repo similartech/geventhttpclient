@@ -117,7 +117,14 @@ class CompatResponse(object):
         self._request = request
         self._sent_request = sent_request
         self.headers = self._response._headers_index
-
+    
+    @property
+    def certificate_info(self):
+        """ The certificate information (if available) 
+        """
+        
+        return self._response.certificate_info
+        
     @property
     def status(self):
         """ The returned http status 
