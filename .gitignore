@@ -8,8 +8,6 @@ build/
 lib/
 include/
 bin/
-
 .project
 .pydevproject
-dist/
-installed-files.txt
+.settings/
