@@ -119,6 +119,13 @@ class CompatResponse(object):
         self.headers = self._response._headers_index
     
     @property
+    def certificate_info(self):
+        """ The certificate information (if available) 
+        """
+        
+        return self._response.certificate_info
+
+    @property
     def final_url(self):
         """ The final url (after redirects) 
         """
@@ -351,15 +358,11 @@ class UserAgent(object):
                 except Exception as e:
                     # Basic transmission successful, but not the wished result
                     # Let's collect some debug info
-                    try:
-                        e.response = resp
-                        e.request = req
-                        e.http_log = self._conversation_str(url, resp)
-                        e = self._handle_error(e, url=req.url)
-                    except:
-                        pass
-                    
+                    e.response = resp
+                    e.request = req
+                    e.http_log = self._conversation_str(url, resp)
                     resp.release()
+                    e = self._handle_error(e, url=req.url)
                     break # Continue with next retry
 
                 if self.cookiejar is not None:
@@ -398,10 +401,7 @@ class UserAgent(object):
                 e = self._handle_error(e, url=url)
         else:
             return self._handle_retries_exceeded(url, last_error=e)
-    
-    def closeurl(self, url):
-        self.clientpool.remove_client(url)
-    
+
     @classmethod
     def _conversation_str(cls, url, resp):
         header_str = '\n'.join('%s: %s' % item for item in resp.headers.pretty_items())
