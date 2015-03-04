@@ -188,8 +188,9 @@ else:
     
         def after_connect(self, sock):
             super(SSLConnectionPool, self).after_connect(sock)
-            if not self.insecure:
-                match_hostname(sock.getpeercert(), self._host)
+#             if not self.insecure:
+#                 print sock.getpeercert()
+#                 match_hostname(sock.getpeercert(), self._host)
     
         def _create_tcp_socket(self, family, socktype, protocol):
             sock = super(SSLConnectionPool, self)._create_tcp_socket(
