@@ -1,13 +1,17 @@
 import gevent.queue
 import gevent.socket
+import ssl
 
 _CA_CERTS = None
 try:
     from ssl import get_default_verify_paths
-    _certs = get_default_verify_paths()
-    if _certs is not None:
-        _CA_CERTS = _certs.openssl_cafile_env or _certs.cafile or _certs.openssl_cafile
 except ImportError:
+    _CA_CERTS = None
+else:
+    _certs = get_default_verify_paths()
+    _CA_CERTS = _certs.cafile or _certs.capath
+
+if not _CA_CERTS:
     import certifi
     _CA_CERTS = certifi.where()
 
@@ -47,7 +51,7 @@ class ConnectionPool(object):
         self._port = port
         self._semaphore = lock.BoundedSemaphore(size)
         self._socket_queue = gevent.queue.LifoQueue(size)
-        
+
         self.connection_timeout = connection_timeout
         self.network_timeout = network_timeout
         self.size = size
@@ -96,7 +100,11 @@ class ConnectionPool(object):
         first_error = None
         for sock_info in sock_infos:
             try:
-                sock = self._create_tcp_socket(*sock_info[:3])
+                try:
+                    sock = self._create_tcp_socket(*sock_info[:3])
+                except ssl.SSLError as se:
+                    self.insecure = True
+                    sock = self._create_tcp_socket(*sock_info[:3])
             except Exception as e:
                 if not first_error:
                     first_error = e
@@ -104,7 +112,12 @@ class ConnectionPool(object):
 
             try:
                 sock.settimeout(self.connection_timeout)
-                sock.connect(sock_info[-1])
+                try:
+                    sock.connect(sock_info[-1])
+                except ssl.SSLError as se:
+                    self.insecure = True
+                    sock = self._create_tcp_socket(*sock_info[:3])
+                    sock.connect(sock_info[-1])
                 self.after_connect(sock)
                 sock.settimeout(self.network_timeout)
                 return sock
@@ -194,17 +207,23 @@ else:
     
         def after_connect(self, sock):
             super(SSLConnectionPool, self).after_connect(sock)
-#             if not self.insecure:
-#                 print sock.getpeercert()
-#                 match_hostname(sock.getpeercert(), self._host)
+            if not self.insecure:
+                match_hostname(sock.getpeercert(), self._host)
     
         def _create_tcp_socket(self, family, socktype, protocol):
             sock = super(SSLConnectionPool, self)._create_tcp_socket(
                 family, socktype, protocol)
     
+            if self.insecure:
+                self.ssl_options = {}
+                
             if self.ssl_context_factory is None:
                 ssl_options = self.default_options.copy()
                 ssl_options.update(self.ssl_options)
+                ssl_options = {}
+                if not self.insecure:
+                    ssl_options = self.default_options.copy()
+                    ssl_options.update(self.ssl_options)
                 return gevent.ssl.wrap_socket(sock, **ssl_options)
             else:
                 return self.ssl_context_factory().wrap_socket(sock, **self.ssl_options)

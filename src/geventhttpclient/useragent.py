@@ -1,8 +1,3 @@
-'''
-Created on 04.11.2012
-
-@author: nimrod
-'''
 import socket
 import errno
 import sys
@@ -434,7 +429,6 @@ class UserAgent(object):
 
     @classmethod
     def _conversation_str(cls, url, resp, payload=None):
-        
         header_str = '\n'.join('%s: %s' % item for item in resp.headers.pretty_items())
         ret = 'REQUEST: ' + url + '\n' + resp._sent_request
         if payload:
