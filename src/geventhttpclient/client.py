@@ -103,7 +103,14 @@ class HTTPClient(object):
         self.default_headers.update(headers)
         self.block_size = block_size
         self._base_url_string = str(self.get_base_url())
-
+        
+    def get_ip(self):
+        
+        if self._connection_pool:
+            return self._connection_pool.ip
+        else:
+            return ''
+        
     def get_base_url(self):
         url = URL()
         url.host = self.host

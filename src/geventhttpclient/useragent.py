@@ -127,14 +127,22 @@ class CompatRequest(object):
 class CompatResponse(object):
     """ Adapter for urllib responses with some extensions 
     """
-    __slots__ = 'headers', '_response', '_request', '_sent_request', '_cached_content'
+    __slots__ = 'headers', '_response', '_request', '_sent_request', '_cached_content', '_ip'
 
-    def __init__(self, ghc_response, request=None, sent_request=None):
+    def __init__(self, ghc_response, request=None, sent_request=None, ip=None):
         self._response = ghc_response
         self._request = request
         self._sent_request = sent_request
         self.headers = self._response._headers_index
+        self._ip = ip
     
+    @property
+    def ip(self):
+        """ The ip address of the website 
+        """
+        
+        return self._ip
+        
     @property
     def certificate_info(self):
         """ The certificate information (if available) 
@@ -313,7 +321,8 @@ class UserAgent(object):
         client = self.clientpool.get_client(request.url_split)
         resp = client.request(request.method, request.url_split.request_uri,
                               body=request.payload, headers=request.headers)
-        return CompatResponse(resp, request=request, sent_request=resp._sent_request)
+        
+        return CompatResponse(resp, request=request, sent_request=resp._sent_request,ip=client.get_ip())
 
     def _verify_status(self, status_code, url=None):
         """ Hook for subclassing 
@@ -383,7 +392,10 @@ class UserAgent(object):
                     # Let's collect some debug info
                     e.response = resp
                     e.request = req
-                    e.http_log = self._conversation_str(req.url, resp, payload=req.payload)
+                    try:
+                        e.http_log = self._conversation_str(req.url, resp, payload=req.payload)
+                    except:
+                        pass
                     resp.release()
                     e = self._handle_error(e, url=req.url)
                     break # Continue with next retry
@@ -422,6 +434,7 @@ class UserAgent(object):
 
     @classmethod
     def _conversation_str(cls, url, resp, payload=None):
+        
         header_str = '\n'.join('%s: %s' % item for item in resp.headers.pretty_items())
         ret = 'REQUEST: ' + url + '\n' + resp._sent_request
         if payload:
