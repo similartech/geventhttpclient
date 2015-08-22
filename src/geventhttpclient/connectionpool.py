@@ -1,6 +1,8 @@
 import gevent.queue
 import gevent.socket
 import ssl
+import os
+
 
 _CA_CERTS = None
 try:
@@ -11,9 +13,10 @@ else:
     _certs = get_default_verify_paths()
     _CA_CERTS = _certs.cafile or _certs.capath
 
-if not _CA_CERTS:
+if not _CA_CERTS or os.path.isdir(_CA_CERTS):
     import certifi
     _CA_CERTS = certifi.where()
+
 
 try:
     from ssl import _DEFAULT_CIPHERS
@@ -209,7 +212,7 @@ else:
             super(SSLConnectionPool, self).after_connect(sock)
             if not self.insecure:
                 match_hostname(sock.getpeercert(), self._host)
-    
+                
         def _create_tcp_socket(self, family, socktype, protocol):
             sock = super(SSLConnectionPool, self)._create_tcp_socket(
                 family, socktype, protocol)
