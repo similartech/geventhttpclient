@@ -17,6 +17,8 @@ like Twitter's.
 Safe SSL support is provided by default.
 
 Python 2.6 and 2.7 are supported as well as gevent 0.13 and gevent 1.0.
+
+Use of SSL/TLS with python 2.7.9 is not recommanded and may be broken.
 """
 
 
@@ -26,17 +28,17 @@ httpparser = Extension('geventhttpclient._parser',
 
 requirements = [
     'gevent >= 0.13',
+    'certifi',
 ]
 
 if sys.hexversion < 0x02070900:
     requirements += [
-        "backports.ssl_match_hostname",
-        "certifi"
+        'backports.ssl_match_hostname',
     ]
 
 
 setup(name='geventhttpclient',
-      version = '1.2.0-dev',
+      version = '1.2.0dev',
       description = 'http client library for gevent',
       long_description = DESC,
       url="http://github.com/gwik/geventhttpclient",
