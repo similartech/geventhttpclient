@@ -183,14 +183,14 @@ class CompatResponse(object):
 
     def _content(self):
         try:
-            content_type = self.headers.getheaders('content-encoding')[0].lower()
+            content_type = self.headers.getheaders('content-encoding')[0].lower().strip()
         except IndexError:
             # No content-encoding header set
             content_type = 'identity'
 
         if not content_type or content_type == '' or content_type not in SUPPORTED_CONTENT_TYPES:
             content_type = 'identity'
-        
+
         if  content_type == 'gzip':
             ret = self.unzipped(gzip=True)
         elif content_type == 'deflate':
