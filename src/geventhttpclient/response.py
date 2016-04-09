@@ -174,6 +174,8 @@ class HTTPSocketResponse(HTTPResponse):
             if self._sock is not None and self.should_close():
                 try:
                     self._sock.close()
+                except gevent.Timeout:
+                   raise
                 except:
                     pass
         finally:
@@ -206,6 +208,13 @@ class HTTPSocketResponse(HTTPResponse):
 
             if self.message_complete:
                 self.release()
+        except gevent.Timeout as t:
+            try:
+                self.release()
+            except:
+                pass
+
+            raise t
         except BaseException:
             self.release()
             raise
@@ -236,6 +245,13 @@ class HTTPSocketResponse(HTTPResponse):
             try:
                 data = self._sock.recv(self.block_size)
                 self.feed(data)
+            except gevent.Timeout as t:
+                try:
+                    self.release()
+                except:
+                    pass
+
+                raise t
             except BaseException:
                 self.release()
                 raise
@@ -258,6 +274,13 @@ class HTTPSocketResponse(HTTPResponse):
                     length is None or len(self._body_buffer) < length):
                 data = self._sock.recv(length or self.block_size)
                 self.feed(data)
+        except gevent.Timeout as t:
+            try:
+                self.release()
+            except:
+                pass
+
+            raise t
         except:
             self.release()
             raise
