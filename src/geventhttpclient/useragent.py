@@ -375,6 +375,8 @@ class UserAgent(object):
                     resp = self._urlopen(req)
                 except gevent.GreenletExit:
                     raise
+                except gevent.Timeout:
+                    raise
                 except BaseException as e:
                     e.request = req
                     e = self._handle_error(e, url=req.url)
@@ -386,12 +388,19 @@ class UserAgent(object):
 
                 try:
                     self._verify_status(resp.status_code, url=req.url)
+                except gevent.Timeout:
+                    raise
                 except Exception as e:
                     # Basic transmission successful, but not the wished result
                     # Let's collect some debug info
                     e.response = resp
                     e.request = req
-                    e.http_log = self._conversation_str(req.url, resp, payload=req.payload)
+                    try:
+                        e.http_log = self._conversation_str(req.url, resp, payload=req.payload)
+                    except gevent.Timeout:
+                       raise
+                    except:
+                        pass
                     resp.release()
                     e = self._handle_error(e, url=req.url)
                     break # Continue with next retry
@@ -412,6 +421,8 @@ class UserAgent(object):
                     # bodies as error and continue retries automatically
                     try:
                         ret = resp.content
+                    except gevent.Timeout:
+                        raise
                     except Exception as e:
                         e = self._handle_error(e, url=req.url)
                         break
@@ -470,6 +481,8 @@ class UserAgent(object):
                         while data:
                             f.write(data)
                             data = resp.read(chunk_size)
+                except gevent.Timeout:
+                    raise
                 except BaseException as e:
                     self._handle_error(e, url=url)
                     if resp.headers.get('accept-ranges') == 'bytes':
