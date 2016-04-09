@@ -167,7 +167,7 @@ class HTTPSocketResponse(HTTPResponse):
 
     @property
     def certificate_info(self):
-        return _certificate_info
+        return self._certificate_info
 
     def release(self):
         try:
