@@ -104,6 +104,13 @@ class HTTPClient(object):
         self.block_size = block_size
         self._base_url_string = str(self.get_base_url())
 
+    def get_host_ip(self):
+
+        if self._connection_pool:
+            return self._connection_pool.host_ip
+        else:
+            return ''
+
     def get_base_url(self):
         url = URL()
         url.host = self.host
