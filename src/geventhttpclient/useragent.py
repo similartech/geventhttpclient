@@ -16,6 +16,7 @@ except ImportError:
 from url import URL
 from client import HTTPClient, HTTPClientPool
 
+SUPPORTED_CONTENT_TYPES = ['compress', 'identity', 'gzip', 'deflate' ]
 
 class ConnectionError(Exception):
     def __init__(self, url, *args, **kwargs):
@@ -195,6 +196,9 @@ class CompatResponse(object):
             # No content-encoding header set
             content_type = 'identity'
 
+        if not content_type or content_type == '' or content_type not in SUPPORTED_CONTENT_TYPES:
+            content_type = 'identity'
+        
         if  content_type == 'gzip':
             ret = self.unzipped(gzip=True)
         elif content_type == 'deflate':
