@@ -163,7 +163,7 @@ class HTTPClient(object):
         while 1:
             sock = self._connection_pool.get_socket()
             try:
-                sock.sendall(request)
+                sock.sendall(request.encode('utf-8'))
                 if body:
                     sock.sendall(body)
             except gevent.socket.error as e:
