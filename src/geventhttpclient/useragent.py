@@ -133,6 +133,16 @@ class CompatResponse(object):
         self._host_ip = host_ip
 
     @property
+    def final_url(self):
+        """ The final url (after redirects)
+        """
+
+        if self._request:
+            return self._request.get_full_url()
+        else:
+            return None
+
+    @property
     def host_ip(self):
         """ The ip address of the host
         """
@@ -145,7 +155,7 @@ class CompatResponse(object):
         """
 
         return self._response.certificate_info
-        
+
     @property
     def status(self):
         """ The returned http status
@@ -205,7 +215,7 @@ class CompatResponse(object):
 
         if not content_type or content_type == '' or content_type not in SUPPORTED_CONTENT_TYPES:
             content_type = 'identity'
-        
+
         if  content_type == 'gzip':
             ret = self.unzipped(gzip=True)
         elif content_type == 'deflate':
