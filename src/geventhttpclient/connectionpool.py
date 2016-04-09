@@ -49,7 +49,7 @@ class ConnectionPool(object):
         self._port = port
         self._semaphore = lock.BoundedSemaphore(size)
         self._socket_queue = gevent.queue.LifoQueue(size)
-        self._host_ip
+        self._host_ip = ''
 
         self.connection_timeout = connection_timeout
         self.network_timeout = network_timeout
