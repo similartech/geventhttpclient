@@ -1,5 +1,6 @@
 import gevent.queue
 import gevent.socket
+import ssl
 
 try:
     from ssl import get_default_verify_paths
@@ -93,6 +94,9 @@ class ConnectionPool(object):
         for sock_info in sock_infos:
             try:
                 sock = self._create_tcp_socket(*sock_info[:3])
+            except ssl.SSLError as se:
+                self.insecure = True
+                sock = self._create_tcp_socket(*sock_info[:3])
             except Exception as e:
                 if not first_error:
                     first_error = e
@@ -100,7 +104,12 @@ class ConnectionPool(object):
 
             try:
                 sock.settimeout(self.connection_timeout)
-                sock.connect(sock_info[-1])
+                try:
+                    sock.connect(sock_info[-1])
+                except ssl.SSLError as se:
+                    self.insecure = True
+                    sock = self._create_tcp_socket(*sock_info[:3])
+                    sock.connect(sock_info[-1])
                 self.after_connect(sock)
                 sock.settimeout(self.network_timeout)
                 return sock
@@ -169,7 +178,7 @@ except ImportError:
 else:
     class SSLConnectionPool(ConnectionPool):
         """ SSLConnectionPool creates connections wrapped with SSL/TLS.
-    
+
         :param host: hostname
         :param port: port
         :param ssl_options: accepts any options supported by `ssl.wrap_socket`
@@ -200,9 +209,16 @@ else:
             sock = super(SSLConnectionPool, self)._create_tcp_socket(
                 family, socktype, protocol)
 
+            if self.insecure:
+                self.ssl_options = {}
+
             if self.ssl_context_factory is None:
                 ssl_options = self.default_options.copy()
                 ssl_options.update(self.ssl_options)
+                ssl_options = {}
+                if not self.insecure:
+                    ssl_options = self.default_options.copy()
+                    ssl_options.update(self.ssl_options)
                 return gevent.ssl.wrap_socket(sock, **ssl_options)
             else:
                 return self.ssl_context_factory().wrap_socket(sock, **self.ssl_options)
