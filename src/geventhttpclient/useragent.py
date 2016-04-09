@@ -208,7 +208,7 @@ class CompatResponse(object):
 
     def _content(self):
         try:
-            content_type = self.headers.getheaders('content-encoding')[0].lower()
+            content_type = self.headers.getheaders('content-encoding')[0].lower().strip()
         except IndexError:
             # No content-encoding header set
             content_type = 'identity'
