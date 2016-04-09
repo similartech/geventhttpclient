@@ -49,11 +49,19 @@ class ConnectionPool(object):
         self._port = port
         self._semaphore = lock.BoundedSemaphore(size)
         self._socket_queue = gevent.queue.LifoQueue(size)
+        self._host_ip
 
         self.connection_timeout = connection_timeout
         self.network_timeout = network_timeout
         self.size = size
         self.disable_ipv6 = disable_ipv6
+
+    @property
+    def host_ip(self):
+        """ The ip address of the host
+        """
+
+        return self._host_ip
 
     def _resolve(self):
         """ resolve (dns) socket informations needed to connect it.
@@ -89,6 +97,10 @@ class ConnectionPool(object):
             or set tcp/socket options
         """
         sock_infos = self._resolve()
+
+        if sock_infos[0] and sock_infos[0][4] and sock_infos[0][4][0]:
+            self._host_ip = sock_infos[0][4][0]
+
         first_error = None
         for sock_info in sock_infos:
             try:
@@ -169,7 +181,7 @@ except ImportError:
 else:
     class SSLConnectionPool(ConnectionPool):
         """ SSLConnectionPool creates connections wrapped with SSL/TLS.
-    
+
         :param host: hostname
         :param port: port
         :param ssl_options: accepts any options supported by `ssl.wrap_socket`
