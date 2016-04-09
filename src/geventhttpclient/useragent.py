@@ -140,6 +140,13 @@ class CompatResponse(object):
         return self._host_ip
 
     @property
+    def certificate_info(self):
+        """ The certificate information (if available)
+        """
+
+        return self._response.certificate_info
+        
+    @property
     def status(self):
         """ The returned http status
         """
