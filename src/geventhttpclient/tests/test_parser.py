@@ -8,6 +8,8 @@ import sys
 
 RESPONSE = 'HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.google.fr/\r\nContent-Type: text/html; charset=UTF-8\r\nDate: Thu, 13 Oct 2011 15:03:12 GMT\r\nExpires: Sat, 12 Nov 2011 15:03:12 GMT\r\nCache-Control: public, max-age=2592000\r\nServer: gws\r\nContent-Length: 218\r\nX-XSS-Protection: 1; mode=block\r\n\r\n<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF="http://www.google.fr/">here</A>.\r\n</BODY></HTML>\r\n'
 
+BAD_RESPONSE = 'HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.google.fr/\r\nX-UA-Compatible "IE=edge,chrome=1": \r\nContent-Type: text/html; charset=UTF-8\r\nDate: Thu, 13 Oct 2011 15:03:12 GMT\r\nExpires: Sat, 12 Nov 2011 15:03:12 GMT\r\nCache-Control: public, max-age=2592000\r\nServer: gws\r\nContent-Length: 218\r\nX-XSS-Protection: 1; mode=block\r\n\r\n<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF="http://www.google.fr/">here</A>.\r\n</BODY></HTML>\r\n'
+
 # borrowed from gevent
 # sys.gettotalrefcount is available only with python built with debug flag on
 gettotalrefcount = getattr(sys, 'gettotalrefcount', None)
@@ -124,4 +126,27 @@ def test_on_message_begin():
     with pytest.raises(RuntimeError):
         response.feed(RESPONSE)
 
+@wrap_refcount
+def test_on_bad_header_format():
+    parser = HTTPResponse()
+    parser.feed(BAD_RESPONSE)
+    response = StringIO(BAD_RESPONSE)
+    while not parser.message_complete:
+        data = response.read(10)
+        parser.feed(data)
 
+    assert parser.message_begun
+    assert parser.headers_complete
+    assert parser.message_complete
+    assert parser.should_keep_alive()
+    assert parser.status_code == 301
+    assert sorted(parser.items()) == [
+        ('cache-control', 'public, max-age=2592000'),
+        ('content-length', '218'),
+        ('content-type', 'text/html; charset=UTF-8'),
+        ('date', 'Thu, 13 Oct 2011 15:03:12 GMT'),
+        ('expires', 'Sat, 12 Nov 2011 15:03:12 GMT'),
+        ('location', 'http://www.google.fr/'),
+        ('server', 'gws'),
+        ('x-xss-protection', '1; mode=block'),
+    ]
