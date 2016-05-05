@@ -213,11 +213,12 @@ else:
             self.ssl_options = kw.pop("ssl_options", {})
             self.ssl_context_factory = kw.pop('ssl_context_factory', None)
             self.insecure = kw.pop('insecure', False)
+            self.dont_validate_certificate = kw.pop('dont_validate_certificate', False)
             super(SSLConnectionPool, self).__init__(host, port, **kw)
 
         def after_connect(self, sock):
             super(SSLConnectionPool, self).after_connect(sock)
-            if not self.insecure:
+            if not self.insecure and not self.dont_validate_certificate:
                 match_hostname(sock.getpeercert(), self._host)
 
         def _create_tcp_socket(self, family, socktype, protocol):
