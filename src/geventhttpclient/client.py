@@ -52,6 +52,7 @@ class HTTPClient(object):
             concurrency=1,
             ssl=False, ssl_options=None, ssl_context_factory=None,
             insecure=False,
+            dont_validate_certificate=False,
             proxy_host=None, proxy_port=None, version=HTTP_11,
             headers_type=Headers):
         self.host = host
@@ -81,6 +82,7 @@ class HTTPClient(object):
                 ssl_options=ssl_options,
                 ssl_context_factory=ssl_context_factory,
                 insecure=insecure,
+                dont_validate_certificate=dont_validate_certificate,
                 network_timeout=network_timeout,
                 connection_timeout=connection_timeout,
                 disable_ipv6=disable_ipv6)
