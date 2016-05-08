@@ -30,7 +30,7 @@ def test_empty():
     assert str(url) == 'http:///'
 
 def test_empty_path():
-    assert URL('http://getgauss.com').path == ''
+    assert URL('http://getgauss.com').path == '/'
 
 def test_consistent_reparsing():
     for surl in (url_full, url_path_only):

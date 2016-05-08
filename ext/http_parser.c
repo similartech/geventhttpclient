@@ -1366,10 +1366,12 @@ reexecute:
                   || c != CONTENT_LENGTH[parser->index]) {
                 parser->header_state = h_general;
               } else if (parser->index == sizeof(CONTENT_LENGTH)-2) {
-                if (parser->flags & F_CONTENTLENGTH) {
+                /* YANIV: Removed to handle sites with multiple
+                   content-length in header */
+                /*if (parser->flags & F_CONTENTLENGTH) {
                   SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
                   goto error;
-                }
+                }*/
                 parser->header_state = h_content_length;
                 parser->flags |= F_CONTENTLENGTH;
               }

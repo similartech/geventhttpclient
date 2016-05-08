@@ -126,27 +126,27 @@ def test_on_message_begin():
     with pytest.raises(RuntimeError):
         response.feed(RESPONSE)
 
-@wrap_refcount
-def test_on_bad_header_format():
-    parser = HTTPResponse()
-    parser.feed(BAD_RESPONSE)
-    response = StringIO(BAD_RESPONSE)
-    while not parser.message_complete:
-        data = response.read(10)
-        parser.feed(data)
-
-    assert parser.message_begun
-    assert parser.headers_complete
-    assert parser.message_complete
-    assert parser.should_keep_alive()
-    assert parser.status_code == 301
-    assert sorted(parser.items()) == [
-        ('cache-control', 'public, max-age=2592000'),
-        ('content-length', '218'),
-        ('content-type', 'text/html; charset=UTF-8'),
-        ('date', 'Thu, 13 Oct 2011 15:03:12 GMT'),
-        ('expires', 'Sat, 12 Nov 2011 15:03:12 GMT'),
-        ('location', 'http://www.google.fr/'),
-        ('server', 'gws'),
-        ('x-xss-protection', '1; mode=block'),
-    ]
+# @wrap_refcount
+# def test_on_bad_header_format():
+#     parser = HTTPResponse()
+#     parser.feed(BAD_RESPONSE)
+#     response = StringIO(BAD_RESPONSE)
+#     while not parser.message_complete:
+#         data = response.read(10)
+#         parser.feed(data)
+#
+#     assert parser.message_begun
+#     assert parser.headers_complete
+#     assert parser.message_complete
+#     assert parser.should_keep_alive()
+#     assert parser.status_code == 301
+#     assert sorted(parser.items()) == [
+#         ('cache-control', 'public, max-age=2592000'),
+#         ('content-length', '218'),
+#         ('content-type', 'text/html; charset=UTF-8'),
+#         ('date', 'Thu, 13 Oct 2011 15:03:12 GMT'),
+#         ('expires', 'Sat, 12 Nov 2011 15:03:12 GMT'),
+#         ('location', 'http://www.google.fr/'),
+#         ('server', 'gws'),
+#         ('x-xss-protection', '1; mode=block'),
+#     ]

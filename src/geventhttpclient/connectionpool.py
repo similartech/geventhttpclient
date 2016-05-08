@@ -124,6 +124,7 @@ class ConnectionPool(object):
                 except ssl.SSLError as se:
                     self.insecure = True
                     sock = self._create_tcp_socket(*sock_info[:3])
+                    sock.settimeout(self.connection_timeout)
                     sock.connect(sock_info[-1])
                 self.after_connect(sock)
                 sock.settimeout(self.network_timeout)
@@ -214,11 +215,15 @@ else:
             self.ssl_context_factory = kw.pop('ssl_context_factory', None)
             self.insecure = kw.pop('insecure', False)
             self.dont_validate_certificate = kw.pop('dont_validate_certificate', False)
+
             super(SSLConnectionPool, self).__init__(host, port, **kw)
 
         def after_connect(self, sock):
             super(SSLConnectionPool, self).after_connect(sock)
+            print "YANIV$insecure$" + str(self.insecure)
+            print "YANIV$dont_validate_certificate$" + str(self.insecure)
             if not self.insecure and not self.dont_validate_certificate:
+                print "YANIV$match_hostname$"
                 match_hostname(sock.getpeercert(), self._host)
 
         def _create_tcp_socket(self, family, socktype, protocol):
