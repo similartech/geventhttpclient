@@ -45,7 +45,7 @@ class HTTPResponse(HTTPResponseParser):
 
     def items(self):
         return self._headers_index.items()
-    
+
     def info(self):
         """ Basic cookielib compatibility """
         return self._headers_index
@@ -80,7 +80,7 @@ class HTTPResponse(HTTPResponseParser):
         length = self.get('content-length', None)
         if length is not None:
             return long(length)
-    
+
     @property
     def length(self):
       return self.content_length
@@ -130,7 +130,7 @@ class HTTPResponse(HTTPResponseParser):
 
     def _flush_header(self):
         if self._current_header_field is not None:
-            self._headers_index.add(self._current_header_field, 
+            self._headers_index.add(self._current_header_field,
                                     self._current_header_value)
             self._header_position += 1
             self._current_header_field = None
@@ -156,12 +156,26 @@ class HTTPSocketResponse(HTTPResponse):
         self._sock = sock
         self.block_size = block_size
         self._read_headers()
+        self._certificate_info = None
+        if isinstance(sock, gevent.ssl.SSLSocket):
+            try:
+                self._certificate_info = sock.getpeercert()
+            except gevent.Timeout:
+               raise
+            except:
+                self._certificate_info = None
+
+    @property
+    def certificate_info(self):
+        return self._certificate_info
 
     def release(self):
         try:
             if self._sock is not None and self.should_close():
                 try:
                     self._sock.close()
+                except gevent.Timeout:
+                   raise
                 except:
                     pass
         finally:
@@ -194,6 +208,13 @@ class HTTPSocketResponse(HTTPResponse):
 
             if self.message_complete:
                 self.release()
+        except gevent.Timeout as t:
+            try:
+                self.release()
+            except:
+                pass
+
+            raise t
         except BaseException:
             self.release()
             raise
@@ -224,6 +245,13 @@ class HTTPSocketResponse(HTTPResponse):
             try:
                 data = self._sock.recv(self.block_size)
                 self.feed(data)
+            except gevent.Timeout as t:
+                try:
+                    self.release()
+                except:
+                    pass
+
+                raise t
             except BaseException:
                 self.release()
                 raise
@@ -246,6 +274,13 @@ class HTTPSocketResponse(HTTPResponse):
                     length is None or len(self._body_buffer) < length):
                 data = self._sock.recv(length or self.block_size)
                 self.feed(data)
+        except gevent.Timeout as t:
+            try:
+                self.release()
+            except:
+                pass
+
+            raise t
         except:
             self.release()
             raise
@@ -299,4 +334,3 @@ class HTTPSocketPoolResponse(HTTPSocketResponse):
     def __del__(self):
         if self._sock is not None:
             self._pool.release_socket(self._sock)
-

@@ -52,6 +52,7 @@ class HTTPClient(object):
             concurrency=1,
             ssl=False, ssl_options=None, ssl_context_factory=None,
             insecure=False,
+            dont_validate_certificate=False,
             proxy_host=None, proxy_port=None, version=HTTP_11,
             headers_type=Headers):
         self.host = host
@@ -81,6 +82,7 @@ class HTTPClient(object):
                 ssl_options=ssl_options,
                 ssl_context_factory=ssl_context_factory,
                 insecure=insecure,
+                dont_validate_certificate=dont_validate_certificate,
                 network_timeout=network_timeout,
                 connection_timeout=connection_timeout,
                 disable_ipv6=disable_ipv6)
@@ -103,6 +105,13 @@ class HTTPClient(object):
         self.default_headers.update(headers)
         self.block_size = block_size
         self._base_url_string = str(self.get_base_url())
+
+    def get_host_ip(self):
+
+        if self._connection_pool:
+            return self._connection_pool.host_ip
+        else:
+            return ''
 
     def get_base_url(self):
         url = URL()
@@ -156,7 +165,7 @@ class HTTPClient(object):
         while 1:
             sock = self._connection_pool.get_socket()
             try:
-                sock.sendall(request)
+                sock.sendall(request.encode('utf-8'))
                 if body:
                     sock.sendall(body)
             except gevent.socket.error as e:

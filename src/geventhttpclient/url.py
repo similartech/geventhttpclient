@@ -43,6 +43,9 @@ class URL(object):
         else:
             scheme, netloc, path, query, fragment = 'http', '', '/', '', ''
 
+        if path is None or path == '':
+            path = "/"
+            
         self.scheme = scheme
         self.fragment = fragment
 

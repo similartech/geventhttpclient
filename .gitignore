@@ -11,3 +11,8 @@ bin/
 .project
 .pydevproject
 .settings/
+
+
+
+dist/
+installed-files.txt
