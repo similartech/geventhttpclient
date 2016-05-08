@@ -59,6 +59,23 @@ Content-Length: 26186
 """.lstrip().replace('\n', '\r\n')
 # Do not remove the final empty line!
 
+DUPLICATE_CONTENT_LENGTH_RESPONSE = """
+HTTP/1.1 200 OK
+Cache-Control:no-store, no-cache, must-revalidate, post-check=0, pre-check=0
+Connection:close
+Connection:close
+Content-Encoding:gzip
+Content-Length:8995
+Content-Length:8995
+Content-Type:text/html;charset=UTF-8
+Date:Sun, 08 May 2016 12:47:12 GMT
+Expires:Thu, 19 Nov 1981 08:52:00 GMT
+Pragma:no-cache
+Server:nginx
+Vary:Accept-Encoding,User-Agent
+X-Powered-By:PHP/5.3.29
+
+""".lstrip().replace('\n', '\r\n')
 
 def test_create_from_kwargs():
     h = Headers(ab=1, cd=2, ef=3, gh=4)
@@ -68,7 +85,7 @@ def test_create_from_kwargs():
 def test_create_from_iterator():
     h = Headers((x, x*5) for x in string.ascii_lowercase)
     assert len(h) == len(string.ascii_lowercase)
-    
+
 def test_create_from_dict():
     h = Headers(dict(ab=1, cd=2, ef=3, gh=4))
     assert len(h) == 4
@@ -130,7 +147,7 @@ def test_compatibility_with_previous_API_write():
     h['asdf'] = 'dfdf'
     # Lists only if necessary
     assert h['asdf'] == 'dfdf'
-    
+
 def test_copy():
     rnd_txt = lambda length: ''.join(random.choice(string.ascii_letters) for _ in xrange(length))
     h = Headers((rnd_txt(10), rnd_txt(50)) for _ in xrange(100))
@@ -145,7 +162,7 @@ def test_copy():
         c[rnd_key] = rnd_txt(10)
         assert rnd_key in c
         assert rnd_key not in h
-    
+
 def test_fieldname_string_enforcement():
     with pytest.raises(Exception):
         Headers({3: 3})
@@ -156,7 +173,7 @@ def test_fieldname_string_enforcement():
         h.add(3, 4)
     with pytest.raises(Exception):
         del h[3]
-        
+
 def test_header_replace():
     d = {}
     d['Content-Type'] = "text/plain"
@@ -177,6 +194,13 @@ def test_compat_dict():
     assert d['D'] == 'asdf'
     assert d['E'] == 'd, f'
     assert d['Cookie'] == 'd, e, f'
+
+def test_read_duplicate_content_length_header():
+    parser = HTTPResponse()
+    parser.feed(DUPLICATE_CONTENT_LENGTH_RESPONSE)
+    headers = parser._headers_index
+    assert len(headers['content-length']) == 2
+    assert headers['content-length'][0] == '8995'
 
 if __name__ == '__main__':
     test_copy()
