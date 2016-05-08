@@ -190,7 +190,15 @@ class HTTPSocketResponse(HTTPResponse):
             while not self.headers_complete:
                 try:
                     data = self._sock.recv(self.block_size)
+
+                    # for c in data:
+                    #     print "Yaniv: \'" + c + "\' ord: " + str(ord(c))
+                    #     self.feed(c)
+                    #
+                    # print "Yaniv: Done"
+
                     self.feed(data)
+
                     # depending on gevent version we get a conn reset or no data
                     if not len(data) and not self.headers_complete:
                         if start:

@@ -220,10 +220,8 @@ else:
 
         def after_connect(self, sock):
             super(SSLConnectionPool, self).after_connect(sock)
-            print "YANIV$insecure$" + str(self.insecure)
-            print "YANIV$dont_validate_certificate$" + str(self.insecure)
+
             if not self.insecure and not self.dont_validate_certificate:
-                print "YANIV$match_hostname$"
                 match_hostname(sock.getpeercert(), self._host)
 
         def _create_tcp_socket(self, family, socktype, protocol):

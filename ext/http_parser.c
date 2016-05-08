@@ -765,6 +765,8 @@ reexecute:
             UPDATE_STATE(s_res_H);
             break;
 
+          /* Yaniv: ignore space at the beginning and ending of headers */
+          // case '\0':
           case CR:
           case LF:
             break;

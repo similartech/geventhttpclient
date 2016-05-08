@@ -77,6 +77,15 @@ X-Powered-By:PHP/5.3.29
 
 """.lstrip().replace('\n', '\r\n')
 
+BAD_RESPONSE_1 = """
+HTTP/1.1 302 Object Moved
+Date: Sun, 08 May 2016 16:05:49 GMT
+Connection: Keep-Alive
+Content-Length: 0
+Location: https://dowelectronics.com/
+
+ """.lstrip().replace('\n', '\r\n')
+
 def test_create_from_kwargs():
     h = Headers(ab=1, cd=2, ef=3, gh=4)
     assert len(h) == 4
@@ -201,6 +210,12 @@ def test_read_duplicate_content_length_header():
     headers = parser._headers_index
     assert len(headers['content-length']) == 2
     assert headers['content-length'][0] == '8995'
+
+# def test_read_bad_header_1():
+#     parser = HTTPResponse()
+#     parser.feed(BAD_RESPONSE_1)
+#     headers = parser._headers_index
+#     assert len(headers) > 2
 
 if __name__ == '__main__':
     test_copy()
