@@ -26,6 +26,8 @@ except ImportError:
         'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:ECDH+RC4:'
         'DH+RC4:RSA+RC4:!aNULL:!eNULL:!MD5')
 
+# print _CA_CERTS
+
 try:
     from gevent import lock
 except ImportError:
