@@ -32,7 +32,7 @@ except ImportError:
     # gevent < 1.0b2
     from gevent import coros as lock
 
-
+print("OPENSSL_VERSION: %s" % ssl.OPENSSL_VERSION)
 DEFAULT_CONNECTION_TIMEOUT = 5.0
 DEFAULT_NETWORK_TIMEOUT = 5.0
 
