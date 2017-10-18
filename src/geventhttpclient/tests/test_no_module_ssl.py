@@ -32,7 +32,6 @@ class DisableSSL(object):
 #         with pytest.raises(Exception):
 #             HTTPClient.from_url("https://httpbin.org/")
 
-
 if __name__ == '__main__':
     test_import_with_nossl()
     test_httpclient_raises_with_no_ssl()

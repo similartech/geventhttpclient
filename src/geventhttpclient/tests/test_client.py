@@ -1,4 +1,6 @@
 import os
+import sys
+import tempfile
 import pytest
 import json
 from contextlib import contextmanager
@@ -7,7 +9,8 @@ from gevent.ssl import SSLError #@UnresolvedImport
 import gevent.pool
 
 import gevent.server
-
+import gevent.pywsgi
+from six.moves import xrange
 
 listener = ('127.0.0.1', 54323)
 
@@ -22,6 +25,14 @@ def server(handler):
     finally:
         server.stop()
 
+@contextmanager
+def wsgiserver(handler):
+    server = gevent.pywsgi.WSGIServer(('127.0.0.1', 54323), handler)
+    server.start()
+    try:
+        yield
+    finally:
+        server.stop()
 
 def test_client_simple():
     client = HTTPClient('www.google.fr')
@@ -74,6 +85,10 @@ def test_response_context_manager():
         r = response
     assert r._sock is None # released
 
+@pytest.mark.skipif(
+    os.environ.get("TRAVIS") == "true",
+    reason="We have issues on travis with the SSL tests"
+)
 def test_client_ssl():
     client = HTTPClient('www.google.fr', ssl=True)
     assert client.port == 443
@@ -83,13 +98,18 @@ def test_client_ssl():
     assert len(body)
 
 # TODO: YANIV: once I add a property to enforce ssl I can re-enable this test
-# def test_ssl_fail_invalid_certificate():
-#     certs = os.path.join(
-#         os.path.dirname(os.path.abspath(__file__)), "onecert.pem")
-#     client = HTTPClient('www.google.fr', ssl_options={'ca_certs': certs})
-#     assert client.port == 443
-#     with pytest.raises(SSLError):
-#         client.get('/')
+@pytest.mark.skipif(
+    sys.version_info < (2, 7)
+    and os.environ.get("TRAVIS") == "true",
+    reason="We have issues on travis with the SSL tests"
+)
+def test_ssl_fail_invalid_certificate():
+    certs = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "oncert.pem")
+    client = HTTPClient('www.google.fr', ssl_options={'ca_certs': certs})
+    assert client.port == 443
+    with pytest.raises(SSLError):
+        client.get('/')
 
 def test_multi_queries_greenlet_safe():
     client = HTTPClient('www.google.fr', concurrency=3)
@@ -118,13 +138,13 @@ class StreamTestIterator(object):
                  'index': i,
                  'title': 'this is line %d' % i})
                  for i in xrange(0, count)]
-        self.buf = sep.join(lines) + sep
-        self.cursor = 0
+        self.buf = (sep.join(lines) + sep).encode()
 
     def __len__(self):
         return len(self.buf)
 
     def __iter__(self):
+        self.cursor = 0
         return self
 
     def next(self):
@@ -138,11 +158,14 @@ class StreamTestIterator(object):
 
         return data
 
+    def __next__(self):
+        return self.next()
+
 
 def readline_iter(sock, addr):
     sock.recv(1024)
     iterator = StreamTestIterator("\n", 100)
-    sock.sendall("HTTP/1.1 200 Ok\r\nConnection: close\r\n\r\n")
+    sock.sendall(b"HTTP/1.1 200 Ok\r\nConnection: close\r\n\r\n")
     for block in iterator:
         sock.sendall(block)
 
@@ -152,18 +175,18 @@ def test_readline():
         response = client.get('/')
         lines = []
         while True:
-            line = response.readline("\n")
+            line = response.readline(b"\n")
             if not line:
                 break
-            data = json.loads(line[:-1])
+            data = json.loads(line[:-1].decode())
             lines.append(data)
         assert len(lines) == 100
-        assert map(lambda x: x['index'], lines) == range(0, 100)
+        assert [x['index'] for x in lines] == [x for x in range(0, 100)]
 
 def readline_multibyte_sep(sock, addr):
     sock.recv(1024)
     iterator = StreamTestIterator("\r\n", 100)
-    sock.sendall("HTTP/1.1 200 Ok\r\nConnection: close\r\n\r\n")
+    sock.sendall(b"HTTP/1.1 200 Ok\r\nConnection: close\r\n\r\n")
     for block in iterator:
         sock.sendall(block)
 
@@ -173,20 +196,20 @@ def test_readline_multibyte_sep():
         response = client.get('/')
         lines = []
         while True:
-            line = response.readline("\r\n")
+            line = response.readline(b"\r\n")
             if not line:
                 break
-            data = json.loads(line[:-1])
+            data = json.loads(line[:-1].decode())
             lines.append(data)
         assert len(lines) == 100
-        assert map(lambda x: x['index'], lines) == range(0, 100)
+        assert [x['index'] for x in lines] == [x for x in range(0, 100)]
 
 def readline_multibyte_splitsep(sock, addr):
     sock.recv(1024)
-    sock.sendall("HTTP/1.1 200 Ok\r\nConnection: close\r\n\r\n")
-    sock.sendall('{"a": 1}\r')
+    sock.sendall(b"HTTP/1.1 200 Ok\r\nConnection: close\r\n\r\n")
+    sock.sendall(b'{"a": 1}\r')
     gevent.sleep(0)
-    sock.sendall('\n{"a": 2}\r\n{"a": 3}\r\n')
+    sock.sendall(b'\n{"a": 2}\r\n{"a": 3}\r\n')
 
 def test_readline_multibyte_splitsep():
     with server(readline_multibyte_splitsep):
@@ -195,10 +218,10 @@ def test_readline_multibyte_splitsep():
         lines = []
         last_index = 0
         while True:
-            line = response.readline("\r\n")
+            line = response.readline(b"\r\n")
             if not line:
                 break
-            data = json.loads(line[:-2])
+            data = json.loads(line[:-2].decode())
             assert data['a'] == last_index + 1
             last_index = data['a']
         len(lines) == 3
@@ -214,7 +237,7 @@ def internal_server_error(sock, addr):
            '</head>\n  <body>\n    <h1>Internal Server Error</h1>\n    \n  ' \
            '</body>\n</html>\n\n'
 
-    sock.sendall(head + body)
+    sock.sendall((head + body).encode())
     sock.close()
 
 def test_internal_server_error():
@@ -225,3 +248,41 @@ def test_internal_server_error():
         assert response.should_close()
         body = response.read()
         assert len(body) == response.content_length
+
+def check_upload(body, body_length):
+    def wsgi_handler(env, start_response):
+        assert int(env.get('CONTENT_LENGTH')) == body_length
+        assert body == env['wsgi.input'].read()
+        start_response('200 OK', [])
+        return []
+    return wsgi_handler
+
+def test_file_post():
+    body = tempfile.NamedTemporaryFile("a+b", delete=False)
+    name = body.name
+    try:
+        body.write(b"123456789")
+        body.close()
+        with wsgiserver(check_upload(b"123456789", 9)):
+            client = HTTPClient(*listener)
+            with open(name, 'rb') as body:
+                client.post('/', body)
+    finally:
+        os.remove(name)
+
+def test_bytes_post():
+    with wsgiserver(check_upload(b"12345", 5)):
+        client = HTTPClient(*listener)
+        client.post('/', b"12345")
+
+def test_string_post():
+    with wsgiserver(check_upload("12345", 5)):
+        client = HTTPClient(*listener)
+        client.post('/', "12345")
+
+def test_unicode_post():
+    byte_string = b'\xc8\xb9\xc8\xbc\xc9\x85'
+    unicode_string = byte_string.decode('utf-8')
+    with wsgiserver(check_upload(byte_string, len(byte_string))):
+        client = HTTPClient(*listener)
+        client.post('/', unicode_string)

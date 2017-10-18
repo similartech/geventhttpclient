@@ -1,4 +1,5 @@
 from collections import Mapping, MutableMapping
+import six
 
 _dict_setitem = dict.__setitem__
 _dict_getitem = dict.__getitem__
@@ -79,8 +80,12 @@ class Headers(dict):
     values = MutableMapping.values
     get = MutableMapping.get
     update = MutableMapping.update
-    iterkeys = MutableMapping.iterkeys
-    itervalues = MutableMapping.itervalues
+    if six.PY3:
+        keys = MutableMapping.keys
+    else:
+        iterkeys = MutableMapping.iterkeys
+    if six.PY2:
+        itervalues = MutableMapping.itervalues
 
     __marker = object()
 
@@ -139,7 +144,7 @@ class Headers(dict):
             raise TypeError("extend() takes at most 1 positional "
                             "arguments ({} given)".format(len(args)))
         other = args[0] if len(args) >= 1 else ()
-        
+
         if isinstance(other, Headers):
             for key, val in other.iteritems():
                 self.add(key, val)
@@ -174,6 +179,14 @@ class Headers(dict):
     getallmatchingheaders = getlist
     iget = getlist
 
+    # Python3 compatibility
+    def get_all(self, key, failobj=None):
+        vals = self.getlist(key)
+        if not vals:
+            return failobj
+        return vals
+
+
     def __repr__(self):
         return "%s(%s)" % (type(self).__name__, dict(self.itermerged()))
 
@@ -199,21 +212,21 @@ class Headers(dict):
     # Extensions to urllib3, compatibility to previous implementation
     def __len__(self):
         return sum(len(self.getlist(key)) for key in self)
-    
+
     def compatible_dict(self):
         return dict(self.itermerged())
-    
+
     def iterlower(self):
         for key in self:
             vals = _dict_getitem(self, key)
             for val in vals[1:]:
                 yield key, val
-    
+
     iteritems = iterlower
-    
+
     def items(self):
         return list(self.iterlower())
-    
+
     def iteroriginal(self):
         """Iterate over all header lines, including duplicate ones."""
         for key in self:

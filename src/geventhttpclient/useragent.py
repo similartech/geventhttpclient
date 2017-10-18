@@ -1,20 +1,22 @@
 import socket
 import errno
+import six
 import sys
 import ssl
 import zlib
 import os
-import cStringIO
-from urllib import urlencode
+from six.moves import xrange, cStringIO
+from six.moves.urllib.parse import urlencode
+from six import print_, reraise, string_types, text_type
 
 import gevent
 try:
     from gevent.dns import DNSError
 except ImportError:
-    class DNSError(StandardError): pass
+    class DNSError(Exception): pass
 
-from url import URL
-from client import HTTPClient, HTTPClientPool
+from .url import URL
+from .client import HTTPClient, HTTPClientPool
 
 SUPPORTED_CONTENT_TYPES = ['compress', 'identity', 'gzip', 'deflate' ]
 
@@ -22,7 +24,7 @@ class ConnectionError(Exception):
     def __init__(self, url, *args, **kwargs):
         self.url = url
         self.__dict__.update(kwargs)
-        if args and isinstance(args[0], basestring):
+        if args and isinstance(args[0], string_types):
             try:
                 self.text = args[0] % args[1:]
             except TypeError:
@@ -31,7 +33,7 @@ class ConnectionError(Exception):
             self.text = str(args[0]) if len(args) == 1 else ''
         if kwargs:
             self.text += ', ' if self.text else ''
-            self.text += ', '.join("%s=%s" % (key, val) for key, val in kwargs.iteritems())
+            self.text += ', '.join("%s=%s" % (key, val) for key, val in six.iteritems(kwargs))
         else:
             self.text = ''
 
@@ -302,18 +304,14 @@ class UserAgent(object):
             if not content_type and isinstance(payload, dict):
                 req_headers['content-type'] = "application/x-www-form-urlencoded; charset=utf-8"
                 payload = urlencode(payload)
-                req_headers['content-length'] = len(payload)
+            elif not content_type and isinstance(payload, text_type):
+                req_headers['content-type'] = 'text/plain; charset=utf-8'
             elif not content_type:
                 req_headers['content-type'] = 'application/octet-stream'
-                payload = payload if isinstance(payload, basestring) else str(payload)
-                req_headers['content-length'] = len(payload)
             elif content_type.startswith("multipart/form-data"):
                 # See restkit for some example implementation
                 # TODO: Implement it
                 raise NotImplementedError
-            else:
-                payload = payload if isinstance(payload, basestring) else str(payload)
-                req_headers['content-length'] = len(payload)
         return CompatRequest(url, method=method, headers=req_headers, payload=payload)
 
     def _urlopen(self, request):
@@ -343,7 +341,7 @@ class UserAgent(object):
             return e
         elif isinstance(e, EmptyResponse):
             return e
-        raise e, None, sys.exc_info()[2]
+        raise reraise(type(e), e, sys.exc_info()[2])
 
     def _handle_retries_exceeded(self, url, last_error=None):
         """ Hook for subclassing
@@ -440,13 +438,25 @@ class UserAgent(object):
 
     @classmethod
     def _conversation_str(cls, url, resp, payload=None):
-        header_str = '\n'.join('%s: %s' % item for item in resp.headers.iteroriginal())
-        ret = 'REQUEST: ' + url + '\n' + resp._sent_request
-        if payload:
-            ret += payload + '\n\n'
-        ret += 'RESPONSE: ' + resp._response.version + ' ' + \
-                           str(resp.status_code) + '\n' + \
-                           header_str + '\n\n' + resp.content
+        if six.PY2:
+            header_str = '\n'.join('%s: %s' % item for item in resp.headers.iteroriginal())
+            ret = 'REQUEST: ' + url + '\n' + resp._sent_request
+            if payload and isinstance(payload, string_types):
+                ret += payload + '\n\n'
+            ret += 'RESPONSE: ' + resp._response.version + ' ' + \
+                   str(resp.status_code) + '\n' + \
+                   header_str + '\n\n' + resp.content
+        else:
+            header_str = '\n'.join('%s: %s' % item for item in resp.headers.iteroriginal())
+            ret = 'REQUEST: ' + url + '\n' + resp._sent_request
+            if payload:
+                if isinstance(payload, six.binary_type):
+                    ret += payload.decode('utf-8') + '\n\n'
+                elif isinstance(payload, six.text_type):
+                    ret += payload + '\n\n'
+            ret += 'RESPONSE: ' + resp._response.version + ' ' + \
+                   str(resp.status_code) + '\n' + \
+                header_str + '\n\n' + resp.content[:].decode('utf-8')
         return ret
 
     def download(self, url, fpath, chunk_size=16 * 1024, resume=False, **kwargs):
@@ -505,5 +515,5 @@ class XmlrpcCompatUserAgent(UserAgent):
         ret = self.urlopen(host + handler, 'POST', payload=request, to_string=True, debug_stream=debug_stream)
         if debug_stream is not None:
             debug_stream.seek(0)
-            print debug_stream.read()
+            print_(debug_stream.read())
         return ret

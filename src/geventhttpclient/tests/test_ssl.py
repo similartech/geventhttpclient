@@ -1,33 +1,39 @@
+import six
+import sys
 from contextlib import contextmanager
 import pytest
 import gevent.server
 import gevent.socket
 import gevent.ssl
-import os.path
+import os
 from geventhttpclient import HTTPClient
 try:
     from ssl import CertificateError
 except ImportError:
     from backports.ssl_match_hostname import CertificateError
 
+pytestmark = pytest.mark.skipif(
+    sys.version_info < (2, 7)
+    and os.environ.get("TRAVIS") == "true",
+    reason="We have issues on travis with the SSL tests"
+)
+
 BASEDIR = os.path.dirname(__file__)
 KEY = os.path.join(BASEDIR, 'server.key')
 CERT = os.path.join(BASEDIR, 'server.crt')
 
 
-listener = ('127.0.0.1', 54323)
-
 @contextmanager
 def server(handler, backlog=1):
     server = gevent.server.StreamServer(
-        listener,
+        ("localhost", 0),
         backlog=backlog,
         handle=handler,
         keyfile=KEY,
         certfile=CERT)
     server.start()
     try:
-        yield
+        yield (server.server_host, server.server_port)
     finally:
         server.stop()
 
@@ -37,7 +43,7 @@ def timeout_connect_server():
         gevent.socket.SOCK_STREAM, 0)
     sock = gevent.ssl.wrap_socket(sock, keyfile=KEY, certfile=CERT)
     sock.setsockopt(gevent.socket.SOL_SOCKET, gevent.socket.SO_REUSEADDR, 1)
-    sock.bind(listener)
+    sock.bind(("localhost", 0))
     sock.listen(1)
 
     def run(sock):
@@ -50,17 +56,18 @@ def timeout_connect_server():
 
     job = gevent.spawn(run, sock)
     try:
-        yield
+        yield sock.getsockname()
+        sock.close()
     finally:
         job.kill()
 
 def simple_ssl_response(sock, addr):
     sock.recv(1024)
-    sock.sendall('HTTP/1.1 200 Ok\r\nConnection: close\r\n\r\n')
+    sock.sendall(b'HTTP/1.1 200 Ok\r\nConnection: close\r\n\r\n')
     sock.close()
 
 def test_simple_ssl():
-    with server(simple_ssl_response):
+    with server(simple_ssl_response) as listener:
         http = HTTPClient(*listener, insecure=True, ssl=True, ssl_options={'ca_certs': CERT})
         response = http.get('/')
         assert response.status_code == 200
@@ -68,17 +75,20 @@ def test_simple_ssl():
 
 def timeout_on_connect(sock, addr):
     sock.recv(1024)
-    sock.sendall('HTTP/1.1 200 Ok\r\nContent-Length: 0\r\n\r\n')
+    sock.sendall(b'HTTP/1.1 200 Ok\r\nContent-Length: 0\r\n\r\n')
 
 def test_timeout_on_connect():
-    with timeout_connect_server():
+    with timeout_connect_server() as listener:
         http = HTTPClient(*listener,
             insecure=True, ssl=True, ssl_options={'ca_certs': CERT})
 
         def run(http, wait_time=100):
-            response = http.get('/')
-            gevent.sleep(wait_time)
-            response.read()
+            try:
+                response = http.get('/')
+                gevent.sleep(wait_time)
+                response.read()
+            except Exception:
+                pass
 
         gevent.spawn(run, http)
         gevent.sleep(0)
@@ -105,19 +115,24 @@ def test_timeout_on_connect():
 def network_timeout(sock, addr):
     sock.recv(1024)
     gevent.sleep(10)
-    sock.sendall('HTTP/1.1 200 Ok\r\nContent-Length: 0\r\n\r\n')
+    sock.sendall(b'HTTP/1.1 200 Ok\r\nContent-Length: 0\r\n\r\n')
 
 def test_network_timeout():
-    with server(network_timeout):
+    with server(network_timeout) as listener:
         http = HTTPClient(*listener, ssl=True, insecure=True,
             network_timeout=0.1, ssl_options={'ca_certs': CERT})
-        with pytest.raises(gevent.ssl.SSLError):
-            response = http.get('/')
-            assert response.status_code == 0, 'should have timed out.'
+        if six.PY3:
+            with pytest.raises(gevent.socket.timeout):
+                response = http.get('/')
+                assert response.status_code == 0, 'should have timed out.'
+        else:
+            with pytest.raises(gevent.ssl.SSLError):
+                response = http.get('/')
+                assert response.status_code == 0, 'should have timed out.'
 
 # TODO: YANIV: Once I add enforce_ssl to client I can re-enable this test
-# def test_verify_hostname():
-#     with server(simple_ssl_response):
-#         http = HTTPClient(*listener, ssl=True, ssl_options={'ca_certs': CERT})
-#         with pytest.raises(CertificateError):
-#             http.get('/')
+def test_verify_hostname():
+    with server(simple_ssl_response) as listener:
+        http = HTTPClient(*listener, ssl=True, ssl_options={'ca_certs': CERT})
+        with pytest.raises(CertificateError):
+            http.get('/')

@@ -1,4 +1,6 @@
+import six
 import errno
+import os
 from geventhttpclient.connectionpool import ConnectionPool
 from geventhttpclient.response import HTTPSocketPoolResponse
 from geventhttpclient.response import HTTPConnectionClosed
@@ -123,6 +125,17 @@ class HTTPClient(object):
     def close(self):
         self._connection_pool.close()
 
+    # Like urllib2, try to treat the body as a file if we can't determine the
+    # file length with `len()`
+    def _get_body_length(self, body):
+        try:
+            return len(body)
+        except TypeError:
+            try:
+                return os.fstat(body.fileno()).st_size
+            except (AttributeError, OSError):
+                return None
+
     def _build_request(self, method, request_uri, body="", headers={}):
         header_fields = self.headers_type()
         header_fields.update(self.default_headers)
@@ -133,7 +146,9 @@ class HTTPClient(object):
                 host_port += HOST_PORT_SEP + str(self.port)
             header_fields[HEADER_HOST] = host_port
         if body and HEADER_CONTENT_LENGTH not in header_fields:
-            header_fields[HEADER_CONTENT_LENGTH] = len(body)
+            body_length = self._get_body_length(body)
+            if body_length:
+                header_fields[HEADER_CONTENT_LENGTH] = body_length
 
         request_url = request_uri
         if self.use_proxy:
@@ -157,6 +172,9 @@ class HTTPClient(object):
         return request
 
     def request(self, method, request_uri, body=b"", headers={}):
+        if isinstance(body, six.text_type):
+            body = body.encode('utf-8')
+
         request = self._build_request(
             method.upper(), request_uri, body=body, headers=headers)
 
@@ -165,9 +183,25 @@ class HTTPClient(object):
         while 1:
             sock = self._connection_pool.get_socket()
             try:
-                sock.sendall(request.encode('utf-8'))
+
+                _request = request.encode()
+
                 if body:
-                    sock.sendall(body)
+                    if isinstance(body, six.binary_type):
+                        sock.sendall(_request + body)
+                    else:
+                        sock.sendall(_request)
+                        # TODO: Support non file-like iterables, e.g. `(u"string1", u"string2")`.
+                        if six.PY3:
+                            sock.sendfile(body)
+                        else:
+                            while True:
+                                chunk = body.read(65536)
+                                if not chunk:
+                                    break
+                                sock.sendall(chunk)
+                else:
+                    sock.sendall(_request)
             except gevent.socket.error as e:
                 self._connection_pool.release_socket(sock)
                 if (e.errno == errno.ECONNRESET or e.errno == errno.EPIPE) and attempts_left > 0:

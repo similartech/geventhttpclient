@@ -1478,6 +1478,12 @@ reexecute:
               goto error;
             }
 
+            if (parser->flags & F_CONTENTLENGTH) {
+              SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
+              goto error;
+            }
+
+            parser->flags |= F_CONTENTLENGTH;
             parser->content_length = ch - '0';
             break;
 
