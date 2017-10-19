@@ -26,8 +26,6 @@ except ImportError:
         'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:ECDH+RC4:'
         'DH+RC4:RSA+RC4:!aNULL:!eNULL:!MD5')
 
-# print _CA_CERTS
-
 try:
     from gevent import lock
 except ImportError:
@@ -111,9 +109,11 @@ class ConnectionPool(object):
             try:
                 sock = self._create_tcp_socket(*sock_info[:3])
             except ssl.SSLError as se:
+                print "create failed: %s %s" % (sock_info[-1], se)
                 self.insecure = True
                 sock = self._create_tcp_socket(*sock_info[:3])
             except Exception as e:
+                print e
                 if not first_error:
                     first_error = e
                 continue
@@ -123,6 +123,7 @@ class ConnectionPool(object):
                 try:
                     sock.connect(sock_info[-1])
                 except ssl.SSLError as se:
+                    print "connect failed: %s %s" % (sock_info[-1], se)
                     self.insecure = True
                     sock = self._create_tcp_socket(*sock_info[:3])
                     sock.settimeout(self.connection_timeout)
@@ -131,6 +132,7 @@ class ConnectionPool(object):
                 sock.settimeout(self.network_timeout)
                 return sock
             except IOError as e:
+                print e
                 sock.close()
                 if not first_error:
                     first_error = e
@@ -228,7 +230,7 @@ else:
         def _create_tcp_socket(self, family, socktype, protocol):
             sock = super(SSLConnectionPool, self)._create_tcp_socket(
                 family, socktype, protocol)
-
+            print self.insecure
             if self.insecure:
                 self.ssl_options = {}
 
