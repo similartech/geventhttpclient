@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # The difference is 2900 requests/s with dict vs 2450 with Headers on my machine
     # For maximum speed, set headers_type=dict
     # In that case, multiple header lines will be ignored, only the first is kept
-    client = HTTPClient.from_url(url, concurrency=C, headers_type=dict)
+    client = HTTPClient.from_url(url, concurrency=C)
     group = gevent.pool.Pool(size=C)
 
     for i in xrange(5):
