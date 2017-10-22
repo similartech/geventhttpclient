@@ -109,11 +109,9 @@ class ConnectionPool(object):
             try:
                 sock = self._create_tcp_socket(*sock_info[:3])
             except ssl.SSLError as se:
-                print "create failed: %s %s" % (sock_info[-1], se)
                 self.insecure = True
                 sock = self._create_tcp_socket(*sock_info[:3])
             except Exception as e:
-                print e
                 if not first_error:
                     first_error = e
                 continue
@@ -123,7 +121,6 @@ class ConnectionPool(object):
                 try:
                     sock.connect(sock_info[-1])
                 except ssl.SSLError as se:
-                    print "connect failed: %s %s" % (sock_info[-1], se)
                     self.insecure = True
                     sock = self._create_tcp_socket(*sock_info[:3])
                     sock.settimeout(self.connection_timeout)
@@ -132,7 +129,6 @@ class ConnectionPool(object):
                 sock.settimeout(self.network_timeout)
                 return sock
             except IOError as e:
-                print e
                 sock.close()
                 if not first_error:
                     first_error = e
@@ -223,14 +219,14 @@ else:
 
         def after_connect(self, sock):
             super(SSLConnectionPool, self).after_connect(sock)
-
+            sock.check_hostname = True
+            sock.do_handshake()
             if not self.insecure and not self.dont_validate_certificate:
                 match_hostname(sock.getpeercert(), self._host)
 
         def _create_tcp_socket(self, family, socktype, protocol):
             sock = super(SSLConnectionPool, self)._create_tcp_socket(
                 family, socktype, protocol)
-            print self.insecure
             if self.insecure:
                 self.ssl_options = {}
 
@@ -241,6 +237,9 @@ else:
                 if not self.insecure:
                     ssl_options = self.default_options.copy()
                     ssl_options.update(self.ssl_options)
-                return gevent.ssl.wrap_socket(sock, **ssl_options)
+                ssl_options.update(dict(do_handshake_on_connect=False))
+                sock = gevent.ssl.wrap_socket(sock, **ssl_options)
+                sock.server_hostname = self._host
+                return sock
             else:
                 return self.ssl_context_factory().wrap_socket(sock, **self.ssl_options)
