@@ -26,4 +26,7 @@ dist:
 release:
 	cat release.md
 
-.PHONY: develop dist release test
+docker_dev:
+	cd docker ; make install_dev
+
+.PHONY: develop dist release test docker_dev
