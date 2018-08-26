@@ -120,12 +120,18 @@ class ConnectionPool(object):
                 sock.settimeout(self.connection_timeout)
                 try:
                     sock.connect(sock_info[-1])
+                    self.after_connect(sock)
                 except ssl.SSLError as se:
+                    # Just close the connection if its opened
+                    try:
+                        sock.close()
+                    except:
+                        pass
+
                     self.insecure = True
                     sock = self._create_tcp_socket(*sock_info[:3])
                     sock.settimeout(self.connection_timeout)
                     sock.connect(sock_info[-1])
-                self.after_connect(sock)
                 sock.settimeout(self.network_timeout)
                 return sock
             except IOError as e:
@@ -243,3 +249,4 @@ else:
                 return sock
             else:
                 return self.ssl_context_factory().wrap_socket(sock, **self.ssl_options)
+    

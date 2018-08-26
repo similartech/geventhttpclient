@@ -9,6 +9,7 @@ ADD . $DEPLOYMENT_DIR
 
 RUN echo \
   && cd $DEPLOYMENT_DIR \
+  && pip uninstall -y geventhttpclient \
   && make develop \
   && echo
 
